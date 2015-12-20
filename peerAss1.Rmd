@@ -1,0 +1,98 @@
+---
+title: "Peer Assignment 1"
+author: "jesussuniaga"
+date: "19 de diciembre de 2015"
+output: html_document
+---
+# 1. Loading the data
+ 
+
+ ```{r}
+unzip("activity.zip")
+data <- read.csv("activity.csv", colClasses = c("integer", "Date", "factor"))
+sinNA <- na.omit(data)
+```
+# 
+
+#2. What is mean total number of steps taken per day?
+For this part of the assignment, you can ignore the missing values in the dataset.
+
+Make a histogram of the total number of steps taken each day
+
+Calculate and report the mean and median total number of steps taken per day
+```{r}
+attach(sinNA)
+totalSteps <- aggregate(steps, list(Date = date), FUN = "sum")
+mean(totalSteps$x)
+median(totalSteps$x)
+hist(totalSteps$x, col = "orangered", xlab = "Number of Steps Taken Each Day", 
+     ylab =   "freq", main = "Histogram of Total Number of Steps Taken Each Day")
+```
+
+#3.What is the average daily activity pattern?
+
+Make a time series plot (i.e. type = "l") of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all days (y-axis)
+
+Which 5-minute interval, on average across all the days in the dataset, contains the maximum number of steps?
+```{r}
+library(ggplot2)
+timeseries <- aggregate(steps, list(interval = as.numeric(as.character(interval))), FUN = "mean")
+ggplot(timeseries, aes(interval, y = x)) + geom_line() + labs(title = "Time Series Plot of the 5-minute Interval", x = "5-minute intervals", y = "Average Number of Steps Taken")
+maximo <- which.max(timeseries$x)
+maximo
+timeseries [maximo, ]
+
+```
+## 4. Imputing missing values
+
+
+Devise a strategy for filling in all of the missing values in the dataset. 
+The strategy does not need to be sophisticated. For example, you could use the mean/median
+for that day, or the mean for that 5-minute interval, etc.
+My strategy is to use the mean for that 5-minute interval to fill each NA value 
+in the steps column.
+Now I Create a new dataset that is equal to the original dataset
+but with the missing data filled in.
+```{r}
+newdata <- data 
+for (i in 1:nrow(newdata)) {
+     if (is.na(newdata$steps[i])) {
+        newdata$steps[i] <- timeseries[which(newdata$interval[i] == timeseries$interval), ]$x
+                   }
+            }
+
+  head(newdata)
+sum(is.na(newdata))
+```
+## 5. Imputing missing values. Second Part.
+Make a histogram of the total number of steps taken each day and Calculate 
+and report the mean and median total number of steps taken per day. 
+Do these values differ from the estimates from the first part of the assignment?
+What is the impact of imputing missing data on the estimates of the total daily 
+number of steps?
+My intrepretation is that The mean value should'not change because I use the mean for that 5-minute interval to fill each NA value in the steps column. And mathematically I can show that the new mean is te same. But other statistics may change a little bit.
+
+```{r}
+totalSteps2 <- aggregate(newdata$steps, list(Date = newdata$date), FUN = "sum")
+mean(totalSteps2$x)
+median(totalSteps2$x)
+hist(totalSteps2$x, col = "blue", xlab = "Number of Steps Taken Each Day",
+     ylab = "freq",main = "Histogram of Total Number of Steps Taken Each Day" )
+```
+
+## 6. Are there differences in activity patterns between weekdays and weekends?
+ Creating a new factor variable in the dataset with two levels -- "weekday" and "weekend" indicating whether a given date is a weekday or weekend day.
+```{r}
+newdata$date <- as.Date(newdata$date, "%Y-%m-%d")
+newdata$day <- weekdays(newdata$date)
+happydays <- c("sábado","domingo")
+
+newdata$tipodia<-as.factor(ifelse(weekdays(newdata$date)%in%happydays,"weekend","weekday"))
+
+library(dplyr)
+by_tipodia <- group_by(newdata, tipodia)
+a <- summarize(by_tipodia, mean(steps))
+a
+by_tipodia
+qplot(interval, steps, data=by_tipodia, geom=c("line"), xlab="5-min intervals", 
+      ylab="steps mean", main="") + facet_wrap(~ tipodia, ncol=1)
